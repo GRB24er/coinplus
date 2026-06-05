@@ -11,4 +11,4 @@ Status values: `Proposed` → `Accepted` / `Rejected` → `Superseded by NNNN`.
 
 | ADR                                                    | Title                                | Status   |
 | ------------------------------------------------------ | ------------------------------------ | -------- |
-| [0001](./0001-backend-for-frontend-for-market-data.md) | Backend-for-Frontend for market data | Proposed |
+| [0001](./0001-backend-for-frontend-for-market-data.md) | Backend-for-Frontend for market data | Accepted |

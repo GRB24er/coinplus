@@ -1,6 +1,6 @@
 # 1. Backend-for-Frontend for market data
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-06-05
 - **Tier:** Tier 2 of the enterprise roadmap (toward a public, multi-tenant SaaS)
 
@@ -115,18 +115,27 @@ Each step ships independently; nothing is ripped out until its replacement is pr
 - More moving parts: backpressure/coalescing for high-frequency ticks, cold-start
   snapshots, and graceful degradation when upstream drops.
 
-## Open decisions (need your input before implementation)
+## Decisions
 
-1. **Hub hosting** — separate Node service (recommended: Fly.io/Railway/Render) vs. a
-   custom Next server on a Node host?
-2. **Redis provider** — Upstash (serverless-friendly, pay-per-request) vs. a managed
-   instance (Elasticache/Redis Cloud)? Recommended: **Upstash** to start.
-3. **Client transport** — WebSocket (bi-directional, matches today) vs. SSE (simpler,
-   one-way, HTTP/2-friendly)? Recommended: **WebSocket**.
-4. **Auth timing** — ship IP-based rate limiting now, or wait for Tier 3 auth to do
-   per-tenant quotas from day one?
-5. **Scale target** — expected peak concurrent users? This sizes the upstream pool, cache
-   TTLs, and hub instance count.
+Resolved:
 
-Once these are settled, **Step 1 (provider interface + Redis cache)** is non-breaking and
-ready to implement first.
+- **Hub hosting:** a **separate long-lived Node service** (Fly.io / Railway / Render /
+  ECS), independent of the Next app.
+- **Client transport:** **WebSocket** (bi-directional; matches the current client).
+- **Cache backend:** **in-memory to start**, behind the `CacheStore` interface so a Redis
+  adapter can be dropped in for production with no caller changes.
+
+Still open:
+
+- **Redis provider** — Upstash vs. a managed instance. Needed before the cache becomes
+  cross-instance and before the hub scales past one node. Recommended: Upstash.
+- **Auth timing** — IP-based rate limiting now vs. per-tenant quotas with Tier 3 auth.
+- **Scale target** — expected peak concurrent users, to size the upstream pool, TTLs, and
+  hub instance count.
+
+## Implementation status
+
+- **Step 1 — provider abstraction + caching seam:** done (`lib/market-data/`). The app now
+  depends on a `MarketDataProvider` (CoinGecko behind a read-through, request-coalescing
+  cache); `fetcher` delegates to it. In-memory cache today; Redis is a localized swap.
+- **Steps 2–4 — realtime hub, cutover, rate limiting:** not started.

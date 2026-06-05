@@ -1,69 +1,18 @@
 'use server';
 
-import qs from 'query-string';
-import { serverEnv } from '@/lib/env.server';
+import { getMarketDataProvider } from '@/lib/market-data';
 
-const MAX_RETRIES = 3;
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
+/**
+ * Thin server-action wrapper over the composed market-data provider. Kept for
+ * backwards compatibility with existing call sites; new code can depend on the
+ * provider directly. `revalidate` is the cache TTL in seconds.
+ */
 export async function fetcher<T>(
   endpoint: string,
   params?: QueryParams,
   revalidate = 60,
 ): Promise<T> {
-  const url = qs.stringifyUrl(
-    {
-      url: `${serverEnv.COINGECKO_BASE_URL}/${endpoint}`,
-      query: params,
-    },
-    { skipEmptyString: true, skipNull: true },
-  );
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-    let response: Response;
-
-    try {
-      response = await fetch(url, {
-        headers: {
-          'x-cg-pro-api-key': serverEnv.COINGECKO_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        next: { revalidate },
-      });
-    } catch (error) {
-      // Network-level failure (DNS, reset, timeout): retry with exponential backoff.
-      if (attempt < MAX_RETRIES) {
-        await delay(500 * 2 ** attempt);
-        continue;
-      }
-
-      throw new Error(
-        `Network error calling ${endpoint}: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
-    }
-
-    if (response.ok) return response.json() as Promise<T>;
-
-    // Retry transient failures (rate limiting + upstream 5xx); honor Retry-After when present.
-    const isRetryable = response.status === 429 || response.status >= 500;
-
-    if (isRetryable && attempt < MAX_RETRIES) {
-      const retryAfter = Number(response.headers.get('retry-after'));
-      const backoff =
-        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt;
-
-      await delay(backoff);
-      continue;
-    }
-
-    const errorBody: CoinGeckoErrorBody = await response.json().catch(() => ({}));
-
-    throw new Error(`API Error: ${response.status}: ${errorBody.error || response.statusText}`);
-  }
-
-  // Unreachable: the final attempt always either returns or throws above.
-  throw new Error(`API Error: request to ${endpoint} failed after ${MAX_RETRIES + 1} attempts`);
+  return getMarketDataProvider().request<T>(endpoint, { params, ttlSeconds: revalidate });
 }
 
 export async function getPools(

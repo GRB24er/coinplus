@@ -23,12 +23,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('fetcher', () => {
+// The retry/error tests pass a TTL of 0 so they exercise the HTTP layer without
+// the cache short-circuiting a second call.
+describe('fetcher (HTTP behaviour, cache bypassed)', () => {
   it('returns parsed JSON on success', async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ hello: 'world' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(fetcher('/ping')).resolves.toEqual({ hello: 'world' });
+    await expect(fetcher('/ping', undefined, 0)).resolves.toEqual({ hello: 'world' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -36,7 +38,7 @@ describe('fetcher', () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({}));
     vi.stubGlobal('fetch', fetchMock);
 
-    await fetcher('/coins/markets', { vs_currency: 'usd' });
+    await fetcher('/coins/markets', { vs_currency: 'usd' }, 0);
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toContain('https://pro-api.coingecko.test/api/v3');
@@ -52,7 +54,7 @@ describe('fetcher', () => {
       .mockResolvedValueOnce(okResponse({ value: 42 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const promise = fetcher<{ value: number }>('/coins/markets');
+    const promise = fetcher<{ value: number }>('/retry-429', undefined, 0);
     await vi.runAllTimersAsync();
 
     await expect(promise).resolves.toEqual({ value: 42 });
@@ -67,7 +69,7 @@ describe('fetcher', () => {
       .mockResolvedValueOnce(okResponse({ ok: true }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const promise = fetcher('/x');
+    const promise = fetcher('/retry-after', undefined, 0);
 
     // Default backoff for the first retry is 500ms; Retry-After of 1s must win.
     await vi.advanceTimersByTimeAsync(500);
@@ -87,7 +89,7 @@ describe('fetcher', () => {
       .mockResolvedValueOnce(okResponse({ recovered: true }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const promise = fetcher('/x');
+    const promise = fetcher('/retry-network', undefined, 0);
     await vi.runAllTimersAsync();
 
     await expect(promise).resolves.toEqual({ recovered: true });
@@ -99,7 +101,7 @@ describe('fetcher', () => {
     const fetchMock = vi.fn().mockResolvedValue(errorResponse(503, {}, { error: 'down' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const promise = fetcher('/coins/markets');
+    const promise = fetcher('/persistent-5xx', undefined, 0);
     const assertion = expect(promise).rejects.toThrow(/503/);
     await vi.runAllTimersAsync();
     await assertion;
@@ -112,7 +114,35 @@ describe('fetcher', () => {
     const fetchMock = vi.fn().mockResolvedValue(errorResponse(404, {}, { error: 'not found' }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(fetcher('/coins/nope')).rejects.toThrow(/404/);
+    await expect(fetcher('/client-404', undefined, 0)).rejects.toThrow(/404/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetcher (caching)', () => {
+  it('serves a second identical request from cache within the TTL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ n: 1 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await fetcher('/cache-hit', undefined, 60);
+    const second = await fetcher('/cache-hit', undefined, 60);
+
+    expect(first).toEqual({ n: 1 });
+    expect(second).toEqual({ n: 1 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces concurrent identical requests into a single upstream call', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ n: 2 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const [a, b] = await Promise.all([
+      fetcher('/coalesce', undefined, 60),
+      fetcher('/coalesce', undefined, 60),
+    ]);
+
+    expect(a).toEqual({ n: 2 });
+    expect(b).toEqual({ n: 2 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
