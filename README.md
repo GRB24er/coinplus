@@ -121,6 +121,11 @@ COINGECKO_API_KEY=
 
 NEXT_PUBLIC_COINGECKO_WEBSOCKET_URL=
 NEXT_PUBLIC_COINGECKO_API_KEY=
+
+# Optional — when set, live data is routed through the realtime hub
+# (services/realtime-hub) instead of connecting to CoinGecko from the browser.
+# See docs/adr/0001-backend-for-frontend-for-market-data.md
+NEXT_PUBLIC_REALTIME_HUB_URL=
 ```
 
 Replace the placeholder values with your real credentials. You can get these by signing up at: [**CoinGecko API**](https://jsm.dev/crypto-gecko).
