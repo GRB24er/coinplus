@@ -138,4 +138,9 @@ Still open:
 - **Step 1 — provider abstraction + caching seam:** done (`lib/market-data/`). The app now
   depends on a `MarketDataProvider` (CoinGecko behind a read-through, request-coalescing
   cache); `fetcher` delegates to it. In-memory cache today; Redis is a localized swap.
-- **Steps 2–4 — realtime hub, cutover, rate limiting:** not started.
+- **Step 2 — realtime hub:** scaffolded (`services/realtime-hub/`). Standalone Node service
+  with single-connection upstream pooling, ref-counted fan-out, snapshots, health checks,
+  graceful shutdown, unit tests, and a Dockerfile. Live price routing works; trade/OHLCV
+  pool routing needs verification against the live stream (see the service README). Not yet
+  deployed or wired into the app.
+- **Steps 3–4 — client cutover, rate limiting:** not started.
