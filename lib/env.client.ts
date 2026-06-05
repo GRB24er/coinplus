@@ -12,11 +12,17 @@ const clientEnvSchema = z.object({
     .string()
     .url('NEXT_PUBLIC_COINGECKO_WEBSOCKET_URL must be a valid URL'),
   NEXT_PUBLIC_COINGECKO_API_KEY: z.string().min(1, 'NEXT_PUBLIC_COINGECKO_API_KEY is required'),
+  // Optional (ADR 0001, Step 3): when set, live data is routed through the realtime hub.
+  NEXT_PUBLIC_REALTIME_HUB_URL: z
+    .string()
+    .url('NEXT_PUBLIC_REALTIME_HUB_URL must be a valid URL')
+    .optional(),
 });
 
 const parsed = clientEnvSchema.safeParse({
   NEXT_PUBLIC_COINGECKO_WEBSOCKET_URL: process.env.NEXT_PUBLIC_COINGECKO_WEBSOCKET_URL,
   NEXT_PUBLIC_COINGECKO_API_KEY: process.env.NEXT_PUBLIC_COINGECKO_API_KEY,
+  NEXT_PUBLIC_REALTIME_HUB_URL: process.env.NEXT_PUBLIC_REALTIME_HUB_URL,
 });
 
 if (!parsed.success) {

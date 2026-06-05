@@ -1,4 +1,11 @@
-import type { Candle, ClientMessage, LiveInterval, PriceUpdate, ServerMessage, TradeUpdate } from './protocol';
+import type {
+  Candle,
+  ClientMessage,
+  LiveInterval,
+  PriceUpdate,
+  ServerMessage,
+  TradeUpdate,
+} from './protocol';
 import { SubscriptionRegistry, subscriptionKey } from './subscription-registry';
 import type { UpstreamSubscription } from './subscription-registry';
 import { UpstreamClient } from './upstream-client';
@@ -86,7 +93,11 @@ export class Hub {
 
   private broadcastPrice(coinId: string, update: PriceUpdate): void {
     this.latestPriceByCoin.set(coinId, update);
-    this.fanOut(subscriptionKey({ kind: 'price', coinId }), { type: 'price', coinId, data: update });
+    this.fanOut(subscriptionKey({ kind: 'price', coinId }), {
+      type: 'price',
+      coinId,
+      data: update,
+    });
   }
 
   private broadcastTrade(poolAddress: string, update: TradeUpdate): void {

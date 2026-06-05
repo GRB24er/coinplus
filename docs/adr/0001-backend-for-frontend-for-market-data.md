@@ -143,4 +143,9 @@ Still open:
   graceful shutdown, unit tests, and a Dockerfile. Live price routing works; trade/OHLCV
   pool routing needs verification against the live stream (see the service README). Not yet
   deployed or wired into the app.
-- **Steps 3–4 — client cutover, rate limiting:** not started.
+- **Step 3 — client cutover:** scaffolded. A hub-protocol client hook
+  (`hooks/useMarketDataStream.ts`) runs behind the `NEXT_PUBLIC_REALTIME_HUB_URL` flag, in
+  parallel with the legacy hook — `hooks/useLiveMarketData.ts` selects between them. The
+  flag is off by default, so behaviour is unchanged. Full cutover (deleting the
+  `NEXT_PUBLIC_COINGECKO_*` vars) waits on a deployed hub + live-stream verification.
+- **Step 4 — rate limiting / quotas:** not started.
